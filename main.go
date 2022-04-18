@@ -129,17 +129,18 @@ type Bridge struct {
 	IMHandler      *iMessageHandler
 	IPC            *ipc.Processor
 
-	user          *User
-	portalsByMXID map[id.RoomID]*Portal
-	portalsByGUID map[string]*Portal
-	portalsLock   sync.Mutex
-	puppets       map[string]*Puppet
-	puppetsLock   sync.Mutex
-	stopping      bool
-	stop          chan struct{}
-	stopPinger    chan struct{}
-	latestState   *imessage.BridgeStatus
-	pushKey       *imessage.PushKeyRequest
+	user           *User
+	portalsByMXID  map[id.RoomID]*Portal
+	portalsByGUID  map[string]*Portal
+	portalsLock    sync.Mutex
+	puppets        map[string]*Puppet
+	puppetsLock    sync.Mutex
+	stopping       bool
+	stop           chan struct{}
+	stopPinger     chan struct{}
+	latestState    *imessage.BridgeStatus
+	pushKey        *imessage.PushKeyRequest
+	spaceRoomsLock sync.Mutex
 
 	shortCircuitReconnectBackoff chan struct{}
 	websocketStarted             chan struct{}
@@ -668,6 +669,8 @@ func (bridge *Bridge) UpdateBotProfile() {
 
 	var err error
 	var mxc id.ContentURI
+	var mxc2 id.ContentURI
+	var err2 error
 	if botConfig.Avatar == "remove" {
 		err = bridge.Bot.SetAvatarURL(mxc)
 	} else if len(botConfig.Avatar) > 0 {
@@ -675,9 +678,17 @@ func (bridge *Bridge) UpdateBotProfile() {
 		if err == nil {
 			err = bridge.Bot.SetAvatarURL(mxc)
 		}
+
+	}
+	mxc2, err2 = id.ParseContentURI(bridge.Config.Bridge.PersonalFilteringSpaces.Image)
+	if err2 == nil {
+		bridge.Config.Bridge.PersonalFilteringSpaces.ParsedImage = mxc2
 	}
 	if err != nil {
 		bridge.Log.Warnln("Failed to update bot avatar:", err)
+	}
+	if err2 != nil {
+		bridge.Log.Warnln("Failed to update space's image:", err)
 	}
 
 	if botConfig.Displayname == "remove" {

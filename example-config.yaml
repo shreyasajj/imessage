@@ -57,6 +57,15 @@ bridge:
     # {{.}} is replaced with the contact list name (if available) or username (phone number or email) of the iMessage user.
     displayname_template: "{{.}} (iMessage)"
 
+    # Should the bridge create a space for each logged-in user and add bridged rooms to it?
+    personal_filtering_spaces: 
+        # Whether or not spaces should be enabled
+        enable: false
+        # The name of the space
+        name: "IMessage"
+        # The MXC URI of the space
+        image: mxc://maunium.net/tManJEpANASZvDVzvRvhILdX
+
     # Whether or not the bridge should send a read receipt from the bridge bot when a message has been
     # sent to iMessage.
     delivery_receipts: false

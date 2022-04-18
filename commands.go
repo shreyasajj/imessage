@@ -113,6 +113,8 @@ func (handler *CommandHandler) CommandMux(ce *CommandEvent) {
 		handler.CommandPingMatrix(ce)
 	case "logout-matrix":
 		handler.CommandLogoutMatrix(ce)
+	case "sync":
+		handler.CommandSync(ce)
 
 	default:
 		ce.Reply("Unknown command, use the `help` command for help.")
@@ -179,6 +181,36 @@ func (handler *CommandHandler) CommandSetPowerLevel(ce *CommandEvent) {
 	}
 }
 
+const cmdSyncHelp = `sync space - Create/Sync Space.`
+
+func (handler *CommandHandler) CommandSync(ce *CommandEvent) {
+	if len(ce.Args) == 0 {
+		ce.Reply("**Usage:** `sync space`")
+		return
+	}
+	args := strings.ToLower(strings.Join(ce.Args, " "))
+	space := strings.Contains(args, "space")
+	if space {
+		if !ce.Bridge.Config.Bridge.PersonalFilteringSpaces.Enable {
+			ce.Reply("Personal filtering spaces are not enabled on this instance of the bridge")
+			return
+		}
+		keys := ce.Bridge.DB.Portal.FindPrivateChatsNotInSpace()
+		count := 0
+		for _, key := range keys {
+			portal := ce.Bridge.GetPortalByGUID(key)
+			portal.addToSpace(ce.User.bridge.user)
+			count++
+		}
+		plural := "s"
+		if count == 1 {
+			plural = ""
+		}
+		ce.Reply("Added %d DM room%s to space", count, plural)
+	}
+
+}
+
 const cmdLoginMatrixHelp = `login-matrix <_access token_> - Enable double puppeting.`
 
 func (handler *CommandHandler) CommandLoginMatrix(ce *CommandEvent) {
@@ -228,7 +260,7 @@ const cmdHelpHelp = `help - Prints this help page.`
 
 // CommandHelp handles help command
 func (handler *CommandHandler) CommandHelp(ce *CommandEvent) {
-	cmdPrefix := handler.bridge.Config.Bridge.CommandPrefix
+	cmdPrefix := handler.bridge.Config.Bridge.CommandPrefix + " "
 	ce.Reply("* " + strings.Join([]string{
 		cmdPrefix + cmdHelpHelp,
 		cmdPrefix + cmdVersionHelp,
@@ -236,5 +268,6 @@ func (handler *CommandHandler) CommandHelp(ce *CommandEvent) {
 		cmdPrefix + cmdLoginMatrixHelp,
 		cmdPrefix + cmdPingMatrixHelp,
 		cmdPrefix + cmdLogoutMatrixHelp,
+		cmdPrefix + cmdSyncHelp,
 	}, "\n* "))
 }

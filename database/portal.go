@@ -18,6 +18,7 @@ package database
 
 import (
 	"database/sql"
+	"errors"
 
 	log "maunium.net/go/maulogger/v2"
 
@@ -33,6 +34,8 @@ func (pq *PortalQuery) New() *Portal {
 	return &Portal{
 		db:  pq.db,
 		log: pq.log,
+
+		inSpaceCache: make(map[string]bool),
 	}
 }
 
@@ -62,6 +65,23 @@ func (pq *PortalQuery) FindPrivateChats() []*Portal {
 	return pq.getAll("SELECT * FROM portal WHERE guid LIKE '%;-;%'")
 }
 
+func (pq *PortalQuery) FindPrivateChatsNotInSpace() (keys []string) {
+	rows, err := pq.db.Query(`
+		SELECT guid FROM portal WHERE mxid<>'' AND (in_space=false OR in_space IS NULL)
+	`)
+	if err != nil || rows == nil {
+		return
+	}
+	for rows.Next() {
+		var guid string
+		err = rows.Scan(&guid)
+		if err == nil {
+			keys = append(keys)
+		}
+	}
+	return
+}
+
 func (pq *PortalQuery) getAll(query string, args ...interface{}) (portals []*Portal) {
 	rows, err := pq.db.Query(query, args...)
 	if err != nil || rows == nil {
@@ -89,12 +109,16 @@ type Portal struct {
 	GUID string
 	MXID id.RoomID
 
+	inSpaceCache map[string]bool
+
 	Name       string
 	AvatarHash *[32]byte
 	AvatarURL  id.ContentURI
 	Encrypted  bool
 
 	BackfillStartTS int64
+
+	in_space bool
 }
 
 func (portal *Portal) avatarHashSlice() []byte {
@@ -107,7 +131,7 @@ func (portal *Portal) avatarHashSlice() []byte {
 func (portal *Portal) Scan(row Scannable) *Portal {
 	var mxid, avatarURL sql.NullString
 	var avatarHashSlice []byte
-	err := row.Scan(&portal.GUID, &mxid, &portal.Name, &avatarHashSlice, &avatarURL, &portal.Encrypted, &portal.BackfillStartTS)
+	err := row.Scan(&portal.GUID, &mxid, &portal.Name, &avatarHashSlice, &avatarURL, &portal.Encrypted, &portal.BackfillStartTS, &portal.in_space)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			portal.log.Errorln("Database scan failed:", err)
@@ -164,5 +188,30 @@ func (portal *Portal) Delete() {
 	_, err := portal.db.Exec("DELETE FROM portal WHERE guid=$1", portal.GUID)
 	if err != nil {
 		portal.log.Warnfln("Failed to delete %s: %v", portal.GUID, err)
+	}
+}
+
+func (portal *Portal) IsInSpace(guid string) bool {
+	if cached, ok := portal.inSpaceCache[guid]; ok {
+		return cached
+	}
+	var inSpace bool
+	err := portal.db.QueryRow("SELECT in_space FROM portal WHERE guid=$1", guid).Scan(&inSpace)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		portal.log.Warnfln("Failed to scan in space status from portal table: %v", err)
+	}
+	portal.inSpaceCache[guid] = inSpace
+	return inSpace
+}
+
+func (portal *Portal) MarkInSpace(guid string) {
+	_, err := portal.db.Exec(`
+		INSERT INTO portal (guid, mxid, name, in_space) VALUES ($1, $2, $3, true)
+			ON CONFLICT (guid) DO UPDATE SET in_space=true
+		`, portal.GUID, portal.mxidPtr(), portal.Name)
+	if err != nil {
+		portal.log.Warnfln("Failed to update in space status: %v", err)
+	} else {
+		portal.inSpaceCache[guid] = true
 	}
 }
