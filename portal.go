@@ -266,7 +266,7 @@ func (portal *Portal) Sync(backfill bool) {
 
 	portal.ensureUserInvited(portal.bridge.user)
 
-	go portal.addToSpace(portal.bridge.user)
+	portal.addToSpace(portal.bridge.user)
 
 	if !portal.IsPrivateChat() {
 		chatInfo, err := portal.bridge.IM.GetChatInfo(portal.GUID)
@@ -655,7 +655,7 @@ func (portal *Portal) CreateMatrixRoom(chatInfo *imessage.ChatInfo, profileOverr
 
 	portal.ensureUserInvited(portal.bridge.user)
 
-	go portal.addToSpace(portal.bridge.user)
+	portal.addToSpace(portal.bridge.user)
 
 	if !portal.IsPrivateChat() {
 		portal.log.Debugln("New portal is group chat, syncing participants")
