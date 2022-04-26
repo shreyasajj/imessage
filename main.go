@@ -128,6 +128,7 @@ type Bridge struct {
 	IM             imessage.API
 	IMHandler      *iMessageHandler
 	IPC            *ipc.Processor
+	Formatter      *Formatter
 
 	user           *User
 	portalsByMXID  map[id.RoomID]*Portal
@@ -246,6 +247,7 @@ func (bridge *Bridge) Init() {
 
 	bridge.Log.Debugln("Initializing Matrix event processor")
 	bridge.EventProcessor = appservice.NewEventProcessor(bridge.AS)
+	bridge.Formatter = NewFormatter(bridge)
 	bridge.Log.Debugln("Initializing Matrix event handler")
 	bridge.MatrixHandler = NewMatrixHandler(bridge)
 
