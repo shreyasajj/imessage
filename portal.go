@@ -681,8 +681,8 @@ func (portal *Portal) CreateMatrixRoom(chatInfo *imessage.ChatInfo, profileOverr
 }
 
 func (portal *Portal) addToSpace(user *User) {
-	portal.bridge.spaceRoomsLock.Lock()
-	defer portal.bridge.spaceRoomsLock.Unlock()
+	// portal.bridge.spaceRoomsLock.Lock()
+	// defer portal.bridge.spaceRoomsLock.Unlock()
 	spaceID := user.GetSpaceRoom()
 	if len(spaceID) == 0 || portal.IsInSpace(portal.GUID) {
 		return
